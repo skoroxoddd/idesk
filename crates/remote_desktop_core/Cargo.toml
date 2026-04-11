@@ -1,0 +1,33 @@
+[package]
+name = "remote_desktop_core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+rand = { workspace = true }
+image = { workspace = true }
+bytes = "1"
+url = "2"
+
+# Screen capture (platform-specific)
+[target.'cfg(any(target_os = "macos", target_os = "windows"))'.dependencies]
+scap = "0.1.0-beta.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13", features = ["shm"] }
+
+# Encoding
+openh264 = "0.4"
+ffmpeg-sidecar = "1"
+
+# WebRTC
+webrtc = "0.12"
+
+# Input
+enigo = "0.3"
+arboard = "3"
