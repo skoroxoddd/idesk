@@ -10,11 +10,12 @@ pub struct CaptureFrame {
 }
 
 impl CaptureFrame {
-    pub fn save_as_png(&self, path: &str) -> std::io::Result<()> {
+    pub fn save_as_png(&self, path: &str) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let rgba = self.to_rgba();
         let img = image::RgbaImage::from_raw(self.width, self.height, rgba)
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "Failed to create image"))?;
-        img.save(path)
+            .ok_or_else(|| "Failed to create image")?;
+        img.save(path)?;
+        Ok(())
     }
 
     fn to_rgba(&self) -> Vec<u8> {

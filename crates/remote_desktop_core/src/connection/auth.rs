@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AuthManager {
     pins: RwLock<HashMap<String, String>>,
 }

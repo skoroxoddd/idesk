@@ -2,7 +2,7 @@ use crate::error::{AppError, Result};
 use crate::input::events::{InputEvent, MouseButton, Modifiers};
 use crate::input::injector::InputInjector;
 use enigo::{
-    Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings,
+    Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings, Axis,
 };
 
 pub struct EnigoInjector {
@@ -18,7 +18,7 @@ impl EnigoInjector {
 
     fn map_key(key: &str) -> Option<Key> {
         match key.to_lowercase().as_str() {
-            "enter" => Some(Key::Return),
+            "enter" | "return" => Some(Key::Return),
             "escape" | "esc" => Some(Key::Escape),
             "backspace" => Some(Key::Backspace),
             "delete" => Some(Key::Delete),
@@ -40,7 +40,6 @@ impl EnigoInjector {
             "f10" => Some(Key::F10),
             "f11" => Some(Key::F11),
             "f12" => Some(Key::F12),
-            _ if key.len() == 1 => None, // Regular char key, handled separately
             _ => None,
         }
     }
@@ -90,25 +89,25 @@ impl InputInjector for EnigoInjector {
     fn inject(&mut self, event: &InputEvent) -> Result<()> {
         match event {
             InputEvent::MouseMove { x, y } => {
-                self.enigo.move(*x, *y)
+                self.enigo.move_mouse(*x, *y, Coordinate::Rel)
                     .map_err(|e| AppError::Input(format!("Mouse move failed: {e}")))?;
             }
             InputEvent::MouseDown { button, x, y } => {
-                self.enigo.move(*x, *y)
+                self.enigo.move_mouse(*x, *y, Coordinate::Rel)
                     .map_err(|e| AppError::Input(format!("Mouse move failed: {e}")))?;
                 let btn = map_mouse_button(button);
                 self.enigo.button(btn, Direction::Press)
                     .map_err(|e| AppError::Input(format!("Mouse down failed: {e}")))?;
             }
             InputEvent::MouseUp { button, x, y } => {
-                self.enigo.move(*x, *y)
+                self.enigo.move_mouse(*x, *y, Coordinate::Rel)
                     .map_err(|e| AppError::Input(format!("Mouse move failed: {e}")))?;
                 let btn = map_mouse_button(button);
                 self.enigo.button(btn, Direction::Release)
                     .map_err(|e| AppError::Input(format!("Mouse up failed: {e}")))?;
             }
             InputEvent::MouseWheel { delta } => {
-                self.enigo.scroll(-*delta)
+                self.enigo.scroll(-*delta, Axis::Vertical)
                     .map_err(|e| AppError::Input(format!("Scroll failed: {e}")))?;
             }
             InputEvent::KeyDown { key, modifiers } => {
@@ -117,13 +116,12 @@ impl InputInjector for EnigoInjector {
                     self.enigo.key(special_key, Direction::Press)
                         .map_err(|e| AppError::Input(format!("Key down failed: {e}")))?;
                 } else if key.len() == 1 {
-                    let ch = key.chars().next().unwrap();
                     self.enigo.text(key)
                         .map_err(|e| AppError::Input(format!("Text input failed: {e}")))?;
                 }
                 self.release_modifiers(modifiers)?;
             }
-            InputEvent::KeyUp { key, modifiers } => {
+            InputEvent::KeyUp { key, modifiers: _ } => {
                 if let Some(special_key) = Self::map_key(key) {
                     self.enigo.key(special_key, Direction::Release)
                         .map_err(|e| AppError::Input(format!("Key up failed: {e}")))?;

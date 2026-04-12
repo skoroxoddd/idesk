@@ -1,4 +1,4 @@
-use webrtc::ice::ICETransportPolicy;
+use webrtc::ice_transport::ice_server::RTCIceServer;
 
 #[derive(Debug, Clone)]
 pub struct IceServer {
@@ -23,13 +23,12 @@ impl IceServer {
         ]
     }
 
-    pub fn to_webrtc(&self) -> webrtc::api::setting_engine::IceServer {
-        let mut server = webrtc::api::setting_engine::IceServer {
+    pub fn to_webrtc(&self) -> RTCIceServer {
+        RTCIceServer {
             urls: self.urls.clone(),
             username: self.username.clone().unwrap_or_default(),
             credential: self.credential.clone().unwrap_or_default(),
             ..Default::default()
-        };
-        server
+        }
     }
 }

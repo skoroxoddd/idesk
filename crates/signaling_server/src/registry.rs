@@ -1,9 +1,12 @@
+use actix_ws::Session;
 use dashmap::DashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::info;
 
-/// Maps session IDs to WebSocket sender channels
+/// Maps session IDs to WebSocket sessions
 pub struct PeerRegistry {
-    peers: DashMap<String, actix_ws::SinkWriter>,
+    peers: DashMap<String, Arc<Mutex<Session>>>,
 }
 
 impl PeerRegistry {
@@ -13,9 +16,9 @@ impl PeerRegistry {
         }
     }
 
-    pub fn register(&self, session_id: String, writer: actix_ws::SinkWriter) {
+    pub fn register(&self, session_id: String, session: Session) {
         info!("Registering peer: {session_id}");
-        self.peers.insert(session_id, writer);
+        self.peers.insert(session_id, Arc::new(Mutex::new(session)));
     }
 
     pub fn unregister(&self, session_id: &str) {
@@ -23,7 +26,7 @@ impl PeerRegistry {
         self.peers.remove(session_id);
     }
 
-    pub fn get_sender(&self, session_id: &str) -> Option<actix_ws::SinkWriter> {
+    pub fn get_session(&self, session_id: &str) -> Option<Arc<Mutex<Session>>> {
         self.peers.get(session_id).map(|entry| entry.value().clone())
     }
 
