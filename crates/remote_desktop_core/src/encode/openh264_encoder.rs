@@ -48,3 +48,31 @@ impl Encoder for OpenH264Encoder {
         Ok(Vec::new())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::capture::mock_capturer::MockCapturer;
+
+    #[test]
+    fn encode_mock_frames() {
+        let mut capturer = MockCapturer::new(320, 240);
+        let mut encoder = OpenH264Encoder::new(320, 240, 500_000).unwrap();
+
+        capturer.start().unwrap();
+
+        // Encode first frame — should produce a keyframe with SPS/PPS
+        let frame = capturer.capture_frame().unwrap();
+        let encoded = encoder.encode(&frame).unwrap();
+        assert!(!encoded.is_empty());
+        assert!(encoded[0].is_keyframe); // First frame should be IDR
+        assert!(!encoded[0].data.is_empty());
+
+        // Encode a few more frames
+        for _ in 0..5 {
+            let frame = capturer.capture_frame().unwrap();
+            let encoded = encoder.encode(&frame).unwrap();
+            assert!(!encoded.is_empty());
+        }
+    }
+}
