@@ -4991,6 +4991,7 @@ dependencies = [
  "enigo",
  "ffmpeg-sidecar",
  "image",
+ "libc",
  "openh264",
  "rand 0.9.2",
  "scap",

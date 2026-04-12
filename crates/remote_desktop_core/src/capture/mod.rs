@@ -1,11 +1,9 @@
 pub mod capturer;
+pub mod factory;
 pub mod frame;
 pub mod mock_capturer;
 
-#[cfg(target_os = "macos")]
-pub mod scap_capturer;
-
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 pub mod scap_capturer;
 
 #[cfg(all(target_os = "linux", not(feature = "wayland")))]
