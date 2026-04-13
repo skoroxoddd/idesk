@@ -26,6 +26,15 @@ ffmpeg-sidecar = "1"
 
 # WebRTC
 webrtc = "0.12"
+bytes = "1"
+
+# WebSocket client for signaling
+
+# WebSocket client for signaling
+async-tungstenite = { version = "0.28", features = ["tokio-runtime"] }
+tokio-tungstenite = "0.26"
+tungstenite = "0.26"
+futures-util = "0.3"
 
 # Input
 enigo = "0.3"
