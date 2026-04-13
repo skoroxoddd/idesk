@@ -140,17 +140,60 @@ impl StreamPipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capture::mock_capturer::MockCapturer;
-    use crate::encode::openh264_encoder::OpenH264Encoder;
+    use crate::capture::frame::CaptureFrame;
+
+    /// Simple mock capturer that is Send + Sync for tests
+    struct TestCapturer {
+        width: u32,
+        height: u32,
+        count: std::sync::atomic::AtomicU64,
+    }
+
+    impl TestCapturer {
+        fn new(width: u32, height: u32) -> Self {
+            Self { width, height, count: std::sync::atomic::AtomicU64::new(0) }
+        }
+    }
+
+    impl Capturer for TestCapturer {
+        fn start(&mut self) -> Result<()> { Ok(()) }
+        fn stop(&mut self) -> Result<()> { Ok(()) }
+        fn capture_frame(&mut self) -> Result<CaptureFrame> {
+            let count = self.count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let size = (self.width * self.height * 3) as usize;
+            let mut data = vec![0u8; size];
+            // Simple pattern that changes per frame
+            let hue = (count * 15) as u8;
+            for i in (0..size).step_by(3) {
+                data[i] = hue;
+                data[i + 1] = ((i / 3) % 256) as u8;
+                data[i + 2] = 128;
+            }
+            Ok(CaptureFrame {
+                data,
+                width: self.width,
+                height: self.height,
+                stride: self.width * 3,
+                timestamp_ms: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64,
+            })
+        }
+        fn width(&self) -> u32 { self.width }
+        fn height(&self) -> u32 { self.height }
+    }
 
     #[tokio::test]
     async fn pipeline_produces_encoded_frames() {
-        let capturer = Box::new(MockCapturer::new(320, 240));
+        use crate::encode::openh264_encoder::OpenH264Encoder;
+
+        let capturer = Box::new(TestCapturer::new(320, 240));
         let encoder = Box::new(OpenH264Encoder::new(320, 240, 500_000).unwrap());
 
-        let (mut pipeline, mut rx) = StreamPipeline::new(capturer, encoder, 15);
+        let (mut pipeline, mut rx) = StreamPipeline::new(capturer, encoder, 30);
 
-        // Run pipeline for a short time then stop
+        // Run pipeline in background — it will stop when receiver is dropped
         let handle = tokio::spawn(async move {
             let _ = pipeline.run().await;
         });
@@ -165,8 +208,8 @@ mod tests {
             }
         }
 
-        pipeline.stop();
-        handle.abort();
+        // Drop receiver to signal pipeline to stop
+        drop(rx);
         let _ = handle.await;
 
         assert!(frame_count >= 3, "Expected at least 3 frames, got {frame_count}");
@@ -174,10 +217,12 @@ mod tests {
 
     #[tokio::test]
     async fn first_frame_is_keyframe() {
-        let capturer = Box::new(MockCapturer::new(320, 240));
+        use crate::encode::openh264_encoder::OpenH264Encoder;
+
+        let capturer = Box::new(TestCapturer::new(320, 240));
         let encoder = Box::new(OpenH264Encoder::new(320, 240, 500_000).unwrap());
 
-        let (mut pipeline, mut rx) = StreamPipeline::new(capturer, encoder, 15);
+        let (mut pipeline, mut rx) = StreamPipeline::new(capturer, encoder, 30);
 
         let handle = tokio::spawn(async move {
             let _ = pipeline.run().await;
@@ -187,8 +232,7 @@ mod tests {
             assert!(output.is_keyframe, "First frame should be a keyframe");
         }
 
-        pipeline.stop();
-        handle.abort();
+        drop(rx);
         let _ = handle.await;
     }
 }

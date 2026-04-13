@@ -52,17 +52,35 @@ impl Encoder for OpenH264Encoder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capture::mock_capturer::MockCapturer;
+    use crate::capture::capturer::Capturer;
+
+    /// Create a test frame with RGB data (3 bytes per pixel)
+    fn make_test_frame(width: u32, height: u32) -> CaptureFrame {
+        let size = (width * height * 3) as usize;
+        let mut data = vec![0u8; size];
+        for y in 0..height {
+            for x in 0..width {
+                let idx = ((y * width + x) * 3) as usize;
+                data[idx] = (x % 256) as u8;       // R
+                data[idx + 1] = (y % 256) as u8;   // G
+                data[idx + 2] = 128u8;              // B
+            }
+        }
+        CaptureFrame {
+            data,
+            width,
+            height,
+            stride: width * 3,
+            timestamp_ms: 0,
+        }
+    }
 
     #[test]
     fn encode_mock_frames() {
-        let mut capturer = MockCapturer::new(320, 240);
         let mut encoder = OpenH264Encoder::new(320, 240, 500_000).unwrap();
 
-        capturer.start().unwrap();
-
         // Encode first frame — should produce a keyframe with SPS/PPS
-        let frame = capturer.capture_frame().unwrap();
+        let frame = make_test_frame(320, 240);
         let encoded = encoder.encode(&frame).unwrap();
         assert!(!encoded.is_empty());
         assert!(encoded[0].is_keyframe); // First frame should be IDR
@@ -70,7 +88,7 @@ mod tests {
 
         // Encode a few more frames
         for _ in 0..5 {
-            let frame = capturer.capture_frame().unwrap();
+            let frame = make_test_frame(320, 240);
             let encoded = encoder.encode(&frame).unwrap();
             assert!(!encoded.is_empty());
         }
