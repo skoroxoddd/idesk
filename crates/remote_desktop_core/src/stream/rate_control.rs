@@ -32,3 +32,40 @@ impl RateController {
         self.current_bitrate
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rate_controller_decrease() {
+        let mut rc = RateController::new(500_000, 5_000_000, 2_000_000);
+        rc.decrease();
+        assert_eq!(rc.bitrate(), 1_800_000); // 2M * 0.9
+    }
+
+    #[test]
+    fn rate_controller_increase() {
+        let mut rc = RateController::new(500_000, 5_000_000, 2_000_000);
+        rc.increase();
+        assert_eq!(rc.bitrate(), 2_200_000); // 2M * 1.1
+    }
+
+    #[test]
+    fn rate_controller_respects_bounds() {
+        let mut rc = RateController::new(500_000, 5_000_000, 2_000_000);
+
+        // Decrease below minimum
+        for _ in 0..20 {
+            rc.decrease();
+        }
+        assert_eq!(rc.bitrate(), 500_000);
+
+        // Increase above maximum
+        let mut rc2 = RateController::new(500_000, 5_000_000, 4_500_000);
+        for _ in 0..20 {
+            rc2.increase();
+        }
+        assert_eq!(rc2.bitrate(), 5_000_000);
+    }
+}

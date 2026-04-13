@@ -136,3 +136,59 @@ impl StreamPipeline {
         self.sps_pps = Some(data);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::capture::mock_capturer::MockCapturer;
+    use crate::encode::openh264_encoder::OpenH264Encoder;
+
+    #[tokio::test]
+    async fn pipeline_produces_encoded_frames() {
+        let capturer = Box::new(MockCapturer::new(320, 240));
+        let encoder = Box::new(OpenH264Encoder::new(320, 240, 500_000).unwrap());
+
+        let (mut pipeline, mut rx) = StreamPipeline::new(capturer, encoder, 15);
+
+        // Run pipeline for a short time then stop
+        let handle = tokio::spawn(async move {
+            let _ = pipeline.run().await;
+        });
+
+        // Receive a few frames
+        let mut frame_count = 0;
+        while let Some(output) = rx.recv().await {
+            assert!(!output.data.is_empty());
+            frame_count += 1;
+            if frame_count >= 3 {
+                break;
+            }
+        }
+
+        pipeline.stop();
+        handle.abort();
+        let _ = handle.await;
+
+        assert!(frame_count >= 3, "Expected at least 3 frames, got {frame_count}");
+    }
+
+    #[tokio::test]
+    async fn first_frame_is_keyframe() {
+        let capturer = Box::new(MockCapturer::new(320, 240));
+        let encoder = Box::new(OpenH264Encoder::new(320, 240, 500_000).unwrap());
+
+        let (mut pipeline, mut rx) = StreamPipeline::new(capturer, encoder, 15);
+
+        let handle = tokio::spawn(async move {
+            let _ = pipeline.run().await;
+        });
+
+        if let Some(output) = rx.recv().await {
+            assert!(output.is_keyframe, "First frame should be a keyframe");
+        }
+
+        pipeline.stop();
+        handle.abort();
+        let _ = handle.await;
+    }
+}
